@@ -1,0 +1,40 @@
+ADBC programming:
+ --> Although the title says, SAP ABAP for HANA,  but let me clarify, ADBC (ABAP DataBase Connectivity) is not the proprietary 
+ feature of HANA. This property is database independent. 
+ --> Years ago even before we heard about HANA, ABAPer used to connect to underlying database explicitly using native SQL.
+ --> The most generic reason why Native SQL was used is, the database tables were not available in SAP Data Dictionary. 
+ Yes, you read it right. There are numerous tables in the database, which do not find the dignity of residing at both places 
+ (database and SAP Data Dictionary). And business might be using those database specific tables for some business case. 
+ In such cases, native SQL used to be the life saver.
+ --> Native SQL allows us to use database-specific SQL statements in an ABAP program.
+     No Syntax of the SQL statement is performed. If there is an issue, we come to know only at runtime.
+ --> If native SQL was already doing, then ADBC better than native SQL as explained below.
+ --> ADBC is an object base API. This API determines where native SQL calls have been made and supports exception 
+ handling better. Technically, ADBC writes native SQL which would be executed at the database layer. But, ADBC makes the process 
+ of connecting to the database and transferring the native SQL code to be executed at database layer smoother and organized.
+ In simple terms, the object-oriented approach is used by ADBC to connect to the database and perform the needed task.
+--> Object Oriented approach bring with it flexibility and ADBC is found in WHERE USED LIST and also error handling of the same 
+native SQL code is better in ADBC.
+Salient feature of ADBC
+1. Just like native SQL, syntax checker cannot catch issues in the code which the underlying database is expecting.
+We need to handle the exceptions properly (usually cx_sql_exception is implemented).
+2. Hashed and Sorted tables are not allowed as the target. So, the standard table is still the king.
+3. If you are using ADBC, do not forget to handle the client/mandt explicitly in your code.
+4. ADBC does not necessarily release the allocated memory/resource on the DB. As a good practice, we should always close the query.
+
+There are 8 generic steps performed in an ADBC call
+1. Set the database connection (CL_SQL_CONNECTION=>GET_CONNECTION)
+2. Instantiate the statement object (CL_SQL_STATEMENT)
+3. Construct the SQL using Concatenate syntax or string operation (check with SQL Console for syntax in HANA Studio or use t-code 
+DBACOCKPIT if you are not on HANA DB yet)
+4. Issue Native SQL Call (EXECUTE_QUERY, EXECUTE_DDL, EXECUTE_UPDATE)
+There are three methods to execute SQL statements.
+EXECUTE_QUERY – For Queries (SELECT statements). An instance of CL_SQL_RESULT_SET is returned as the result of the query.
+EXECUTE_DDL – For DDL (CREATE, DROP, or ALTER). No returning parameter.
+EXECUTE_UPDATE – For DML (INSERT, UPDATE, or DELETE). Returns the number of table rows processed in ROWS_PROCESSED.
+5. Assign Target variable for result set (CL_SQL_RESULT_SET, methods SET_PARAM(), SET_PARAM_TABLE())
+6. Retrieve Result set (CL_SQL_RESULT_SET=>NEXT_PACKAGE)
+7. Close the query and release resources (CL_SQL_RESULT_SET method CLOSE())
+8. Close database connection (CL_SQL_CONNECTION; method CLOSE())
+
+
