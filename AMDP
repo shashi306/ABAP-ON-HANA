@@ -1,0 +1,226 @@
+AMDP is Database Procedure which is Managed by ABAP. It is not a database thing. It is governed and managed by ABAP.
+only ABAP transports (ABAP Class/Method) of AMDP needs to be transported and we need not worry about the corresponding
+underlying HANA artifacts. Both CDS and AMDP fall in Top-Down Approach of HANA, which are recommended by SAP.
+
+For HANA, the database is HDB and language is SQLScript.
+
+AMDP only supports database procedures from the SAP HANA database. But in principle, however,
+AMDP is designed so that stored procedures from other database systems can also be supported.
+
+AMDP can detect Database independent syntax errors; HANA specific syntax error and SQL Script errors.
+Parameters not passed by value, wrong parameter types etc are database independent issues. Type mapping checks or wrong default 
+values are HANA specific errors.
+
+it makes us believe that AMDP is not HANA database specific as it has provision to include other databases.
+
+If a Class has Marker Interface “IF_AMDP_MARKER_HDB” (student batch) then it is an AMDP class (head boy/gir
+l). If one or more METHOD of AMDP class has the keyword “BY DATABASE PROCEDURE” (special key for head boy/girl), 
+then it is AMDP method.
+the mandatory interface “if_amdp_marker_hdb”. You can have your own data definitions (TYPES, CONSTANTS, DATA etc.) 
+and Methods as well in this space. But we must have one method which will be an AMDP Method. This so-called AMDP method 
+can have some importing parameter(s) and exporting table output(s). But both should be VALUE reference only.
+
+if you find the keyword “BY DATABASE PROCEDURE”, it is AMDP method.
+ 
+What is the motivation behind AMDP?
+Answer: Stored Procedures have been supported by all databases and they can be called and created using ABAP code.
+Native SQL was the method to consume Stored Procedures before ABAP 7.4. Now we can use ADBC as it has better advantage
+(OOPs, where-used analysis, exception handling etc) than direct Native SQL call.
+
+ADBC can be Bottom Up and manage the complete lifecycle of the stored procedure outside the ABAP stack.
+We need to make sure, the stored procedure is deployed in all database systems 
+
+ADBC can also be Top Down. Surprised!!! Yes, it can follow Top Down Approach. When we concatenate 
+the native SQL statements in our own program and call the database and execute those SQL statements, it is Top Down.
+
+do you think creating the complex stored procedure by concatenation strings in ABAP that easy? 
+You might build native SQL code for simple selects and other normal stuff and build your program. 
+But complex/actual project requirement is more than just DEMO program. ? And most developer (ABAPers like me)
+are not familiar with native SQL (and database language) and ADBC still, lacks native SQL check during compile.
+
+So, the motivation is crystal clear. With ADMP, the creation, modification, activation and transport are all handled at ABAP layer
+, i.e. stored procedure runtime objects on HDB is created and managed by AMDP in ABAP AS. Also, SQLScript source code is managed at
+ABAP AS by AMDP. SQLScript syntax check also happens in HDB (but not in another database), unlike ADBC.
+
+What are the restrictions in AMDP Methods?
+Answer:
+1. RETURNING parameters cannot be used. When you can have IMPORTING/EXPORTING/CHANGING parameters, who cares for RETURNING parameters.
+Right?
+2. Parameters have to be passed by VALUE.
+3. Parameters can only be either Table or Scalar. That means, only variables, structures and simple internal tables can be passed.
+No deep structures, no complex tables (tables in a table) i.e. no nested tables.
+4. If ABAP Dictionary structures are used for typing, the method cannot be implemented as an AMDP.
+5. Whatever ABAP dictionary tables, views, other procedures etc you want to use in AMDP Method has to be declared while implementing
+using keyword USING (in the above figure, EKKO and EKPO are passed).
+
+How are AMDP Methods called?
+Answer: AMDP Method call is not special. They are called like any other normal class method. But AMDP methods are executed 
+like static methods, even though they are defined as instance methods.
+
+When does AMDP execute in underlying database?
+Answer: When AMDP is executed, the ABAP Kernel calls the database procedure in the underlying database (SAP HANA).
+AMDP makes the database procedure available at runtime in the database. Database procedures are created when they are called 
+by AMDP for the first time. This is call Lazy Approach. Wiki says: “Lazy loading is a design pattern commonly used in computer 
+programming to defer initialization of an object until the point at which it is needed“. JIT. right? Just In Time.
+If we make any change in the source code of database procedure or any dependent objects, then the new version of the database
+procedure is created and old versions are deleted asynchronously (taking its own sweet time :)).
+Before we proceed forward, let us refresh our CDS Concept in SAP HANA.
+
+Where are AMDPs created?
+Answer: From SAP NetWeaver 7.4 SPS 05 i.e. ABAP release 740 Service Pack Level 05, AMDP can be created in ABAP in Eclipse
+(Eclipse based environment i.e. ADT : ABAP Development Tool). We need to be in ABAP Perspective. We can view the class and methods 
+in SE24 in ABAP workbench (GUI) but we cannot edit them in GUI. Although AMDPs are created in Eclipse, they are saved at the ABAP layer. So developers are concerned only with ABAP artifacts. No need to worry about database artifacts and system handling in different environments in the same landscape.
+
+AMDPs are defined at ABAP layer but they are dependent on the underlying database so that they can optimize the database
+in use at the fullest. As they are database dependent, the implementation language differs based on the database. 
+SQLScript is the implementation language for HDB so playing with AMDP in HDB is same as implementing SQLScript in our ABAP programs. 
+In another database, the implementing language may not be SQLScript.
+Program1:-
+==========
+CLASS zcl_user_role_amdp DEFINITION
+  PUBLIC
+  FINAL
+  CREATE PUBLIC .
+
+  PUBLIC SECTION.
+
+    INTERFACES if_amdp_marker_hdb.
+
+    TYPES:
+      BEGIN OF ty_tcode,
+        tcode TYPE agval,
+        ttext TYPE ttext_stct,
+        role  TYPE agr_name,
+        rtext TYPE agr_title,
+      END OF ty_tcode .
+
+    TYPES:
+      tt_tcode TYPE STANDARD TABLE OF ty_tcode .
+
+    METHODS get_t_code_role_matrix
+      IMPORTING
+        VALUE(ip_tcode)         TYPE    tcode
+        VALUE(ip_object)        TYPE    agobject
+        VALUE(ip_langu)         TYPE    menu_spras
+        VALUE(ip_line)          TYPE    menu_num_5
+      EXPORTING
+        VALUE(ex_it_tcode_role) TYPE    tt_tcode.
+
+    METHODS get_t_code_role_matrix_nonamdp
+      IMPORTING
+        VALUE(ip_tcode)         TYPE    tcode
+        VALUE(ip_object)        TYPE    agobject
+        VALUE(ip_langu)         TYPE    menu_spras
+        VALUE(ip_line)          TYPE    menu_num_5
+      EXPORTING
+        VALUE(ex_it_tcode_role) TYPE    tt_tcode.
+
+  PROTECTED SECTION.
+  PRIVATE SECTION.
+ENDCLASS.
+
+CLASS zcl_user_role_amdp IMPLEMENTATION.
+
+  METHOD get_t_code_role_matrix
+                          BY DATABASE PROCEDURE
+                          FOR HDB
+                          LANGUAGE SQLSCRIPT
+                          OPTIONS READ-ONLY
+                          USING agr_1251 tstct agr_texts.
+
+    ex_it_tcode_role = select a.low,
+    b.ttext,
+    a.agr_name,
+    c.text
+from       agr_1251  as a
+inner join tstct     as b on a.low      = b.tcode
+    inner join agr_texts as c on a.agr_name = c.agr_name
+    where
+               a.mandt = :ip_client
+    AND        a.low   = :ip_tcode
+    AND        a.object = :ip_object
+    AND        b.sprsl  = :ip_langu
+    AND        c.spras  = :ip_langu
+    AND        C.LINE   = :ip_line
+    ORDER BY a.low, a.agr_name;
+
+  ENDMETHOD.
+
+  METHOD get_t_code_role_matrix_nonamdp.
+
+    SELECT a~low b~ttext a~agr_name c~text INTO TABLE ex_it_tcode_role
+                FROM       agr_1251  AS a
+                INNER JOIN tstct     AS b ON a~low      = b~tcode
+                INNER JOIN agr_texts AS c ON a~agr_name = c~agr_name
+                WHERE      a~low    =  ip_tcode
+                AND        a~object =  ip_object
+                AND        b~sprsl  =  ip_langu
+                AND        c~spras  =  ip_langu
+                AND        c~line   =  ip_line
+                ORDER BY a~low a~agr_name.
+  ENDMETHOD.
+ENDCLASS.
+Program2:-
+==========
+REPORT zmm_tcode_role_report  NO STANDARD PAGE HEADING
+                                                      LINE-COUNT 132.
+
+*--------------------------------------------------------------------*
+* DATA DECLARATION
+*--------------------------------------------------------------------*
+* Inline data declaration for the AMDP Class Instance
+DATA(lr_data) = NEW zcl_user_role_amdp( ).
+
+*--------------------------------------------------------------------*
+* SELECTION SCREEN
+*--------------------------------------------------------------------*
+SELECTION-SCREEN: BEGIN OF BLOCK block1 WITH FRAME TITLE text-t01.
+PARAMETERS p_tcode TYPE tcode.
+SELECTION-SCREEN: END OF BLOCK block1.
+
+*--------------------------------------------------------------------*
+* INITIALIZATION.
+*--------------------------------------------------------------------*
+
+*--------------------------------------------------------------------*
+* START-OF-SELECTION.
+*--------------------------------------------------------------------*
+START-OF-SELECTION.
+
+* Calling the AMDP method to get the data
+  CALL METHOD lr_data->get_t_code_role_matrix
+    EXPORTING
+      ip_tcode         = p_tcode
+      ip_object        = 'S_TCODE'
+      ip_langu         = sy-langu
+      ip_line          = '00000'
+    IMPORTING
+      ex_it_tcode_role = DATA(it_tcode_role).
+
+*--------------------------------------------------------------------*
+* If you are in ABAP 740 and SP 5 and above but still not in HANA,
+* You can connect from Eclipse/HANA Studio and create AMDP but
+* cannot execute in database layer. You can try below code for
+* normal Class-Method call.
+*--------------------------------------------------------------------*
+** Normal method call at AS ABAP Layer
+*  CALL METHOD lr_data->get_t_code_role_matrix_nonamdp
+*    EXPORTING
+*      ip_tcode         = p_tcode
+*      ip_object        = 'S_TCODE'
+*      ip_langu         = sy-langu
+*      ip_line          = '00000'
+*    IMPORTING
+*      ex_it_tcode_role = DATA(it_tcode_role).
+*--------------------------------------------------------------------*
+
+*--------------------------------------------------------------------*
+* END-OF-SELECTION.
+*--------------------------------------------------------------------*
+END-OF-SELECTION.
+
+* Publishing the data in an output
+  cl_demo_output=>display_data(
+    EXPORTING
+      value = it_tcode_role
+      name  =  'AMDP Usage to display the TCode and Role'  ).
