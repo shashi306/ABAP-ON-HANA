@@ -1,0 +1,133 @@
+Please note, we cannot directly pass SELECT options as is it to AMDP Methods. This is one limitation of AMDP. 
+We need to select the data from the database and then APPLY the Filter using the function APPLY_FILTER.
+
+Let us hit it hard again. AMDP Class-Methods cannot take SELECT OPTIONS as input. So SELECT OPTIONS need to be
+converted to FILTER STRING using some way and then pass the FILTER STRING as an input PARAMETER of the of the AMDP Method.
+
+The actual syntax to filter the selected data would look like below:
+* Filtration based on Selection screen input
+ex_it_tcode_role = APPLY_FILTER( :ex_it_tcode_role, :ip_filters );
+
+EX_IT_TCODE_ROLE would have all the data and APPLY_FILTER would keep the subset using IP_FILTERS value.
+
+How do we pass IP_FILTERS?
+Ans: It has to be passed as STRING.
+
+METHODS get_t_code_role_matrix
+IMPORTING
+VALUE(ip_object) TYPE agobject
+VALUE(ip_langu) TYPE menu_spras
+VALUE(ip_line) TYPE menu_num_5
+VALUE(ip_filters) TYPE string " PARAMETER for the SELECT OPTION String
+EXPORTING
+VALUE(ex_it_tcode_role) TYPE tt_tcode.
+
+If S_TCODE and S_ROLE are two SELECT OPTIONS of a program, then the string for AMDP filter can be generated 
+using the class CL_SHDB_SELTAB method COMBINE_SELTABS as shown below.
+
+DATA(lv_where) = cl_shdb_seltab=>combine_seltabs(
+it_named_seltabs = VALUE #(
+( name = 'TCODE' dref = REF #( s_tcode[] ) )
+( name = 'ROLE' dref = REF #( s_role[] ) )
+) ).
+
+* Calling the AMDP method to get the data
+CALL METHOD lr_data->get_t_code_role_matrix
+EXPORTING
+ip_object = 'S_TCODE'
+ip_langu = sy-langu
+ip_line = '00000'
+ip_filters = lv_where
+IMPORTING
+ex_it_tcode_role = DATA(it_tcode_role).
+
+CLASS zcl_user_role_amdp DEFINITION
+PUBLIC
+FINAL
+CREATE PUBLIC .
+ 
+PUBLIC SECTION.
+ 
+INTERFACES if_amdp_marker_hdb.
+ 
+TYPES:
+BEGIN OF ty_tcode,
+tcode TYPE agval,
+ttext TYPE ttext_stct,
+role TYPE agr_name,
+rtext TYPE agr_title,
+END OF ty_tcode .
+ 
+TYPES:
+tt_tcode TYPE STANDARD TABLE OF ty_tcode .
+ 
+METHODS get_t_code_role_matrix
+IMPORTING
+VALUE(ip_object) TYPE agobject
+VALUE(ip_langu) TYPE menu_spras
+VALUE(ip_line) TYPE menu_num_5
+VALUE(ip_filters) TYPE string
+EXPORTING
+VALUE(ex_it_tcode_role) TYPE tt_tcode.
+ 
+PROTECTED SECTION.
+PRIVATE SECTION.
+ 
+ENDCLASS.
+ 
+CLASS zcl_user_role_amdp IMPLEMENTATION.
+ 
+METHOD get_t_code_role_matrix
+BY DATABASE PROCEDURE
+FOR HDB
+LANGUAGE SQLSCRIPT
+OPTIONS READ-ONLY
+USING agr_1251 tstct agr_texts.
+ 
+ex_it_tcode_role = select a.low,
+b.ttext,
+a.agr_name,
+c.text
+from agr_1251 as a
+inner join tstct as b on a.low = b.tcode
+inner join agr_texts as c on a.agr_name = c.agr_name
+where
+a.mandt = :ip_client
+AND a.object = :ip_object
+AND b.sprsl = :ip_langu
+AND c.spras = :ip_langu
+AND C.LINE = :ip_line
+ORDER BY a.low, a.agr_name;
+ 
+* Filtration based on Selection screen input
+ex_it_tcode_role = APPLY_FILTER( :ex_it_tcode_role, :ip_filters );
+ 
+ENDMETHOD.
+ENDCLASS.
+
+i – Dataset (example AGR_1251 (DB table, CDS View); :ex_it_tcode_role (Internal table)) which needs to be filtered.
+
+Question: After going through the above information one would have a doubt. Why did SAP not allow SELECT OPTIONS
+to be directly used in AMDP as in normal ABAP?
+
+Ans: We would request experts to provide some explanation to this query.
+We feel SAP deliberately chose this path to push down the select option to database level in accordance 
+with its code to data paradigm shift strategy. AMDPs are executed directly on the database, 
+hence the select options in the form of filter string would be executed on the database. On the other hand 
+SELECT OPTION is just an ABAP language construct which cannot be directly executed on database level.
+
+----------------------------------------------------------------------
+Open SQL is the only DB abstraction layer with an SQL-like syntax that defines a common semantic for all 
+SAP-supported databases. Behind the scene,------- the Kernel programs are busy converting the Open SQL statement to 
+Native SQL statements for the database in use-------
+Open SQL can only work with database tables that have been created in the ABAP Dictionary.
+-----------------------------------------------------------------------------------------------
+Open SQL supports Code Push down
+i) Push down data intense computations and calculations to the HANA DB layer
+ii) Avoid bringing all the data to the ABAP layer.
+
+According to SAP, “Code Pushdown” begins with Open SQL
+i) Use aggregate functions where relevant instead of doing the aggregations in the ABAP layer
+ii) Use arithmetic and string expressions within Open SQL statements
+iii) Use computed columns in order to push down computations that would otherwise be done in long loops.
+iv) Use CASE and/or IF..ELSE expressions within the Open SQL.
