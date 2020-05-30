@@ -1,0 +1,69 @@
+CDS provides another magical strength to the users to expose the views as OData services. 
+There is a conventional way to create a service in SEGW importing the view you created.
+
+Syntax at heading line:  @OData.publish: true.
+
+Note, once you activate the view at heading “@OData.Publish: true” 
+which reads that you need to register the service through /IWFND/MAINT_SERVICE
+
+Now, as instructed go to transaction /IWFND/MAINT_SERVICE in the gateway system to register
+ the service created through CDS.
+
+Once the service is found, click on the service to register and save it in the appropriate package.
+Note we have not used SEGW to create any service. This service got automatically generated due to 
+OData Annotation maintained.
+
+Now test your service through /IWFND/GW_CLIENT transaction using proper OData query. Note, for 
+navigation unlike usual gateway, we are using ‘to_<association name>’ in the query to navigate to the
+second data set. Since we created vbeln as an association condition in our ‘ZTEST_ASSOC_VIEW2’
+the value needs to be passed through OData query for data fetching.
+
+Limitations
+Please also be informed that this service can only provide GET operation. No other CRUD operations
+ can be done with this CDS view OData Exposure.
+
+Usually, CDS views are created for fetching data (GET operations) and therefore even with the above
+limitation, this method of exposing CDS views as OData service is very helpful. 
+This also shows the power of Annotations (New SQL) in the Core Data Services.
+
+Example:
+@AbapCatalog.sqlViewName: 'ZV_ODATA_DEMO'
+@AbapCatalog.compiler.compareFilter: true
+@AccessControl.authorizationCheck: #NOT_REQUIRED
+@EndUserText.label: 'OData service on ABAP CDS View'
+@OData.publish: true
+
+define view ZODATA_DEMO as select from scarr 
+{
+key carrid      as AirlineCode,
+    carrname    as AirlineName,
+    currcode    as Currency,
+    url         as AirlineURL
+}
+
+CDS view should meet following rules for successful OData service generation.
+
+No syntax errors in DDL source code.
+At least one key element is defined in the SELECT list of the CDS view.
+The name of the CDS view should not exceed 26 characters in length.
+
+With Parameters:-
+----------------
+
+@AbapCatalog.sqlViewName: 'ZV_ODATA_DEMO_P'
+@AbapCatalog.compiler.compareFilter: true
+@AccessControl.authorizationCheck: #NOT_REQUIRED
+@EndUserText.label: 'OData service on ABAP CDS View'
+
+@OData.publish: true
+define view ZODATA_DEMO_PARAMS 
+with parameters p_carrid :S_CARR_ID
+as select from scarr 
+
+{
+key carrid      as AirlineCode,
+    carrname    as AirlineName,
+    currcode    as Currency,
+    url         as AirlineURL
+} 
+where carrid = $parameters.p_carrid( this is from screen field).
