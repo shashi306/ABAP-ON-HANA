@@ -1,0 +1,16 @@
+The virtual SAP ABAP CDS views virtual data model resides in the application server in an on-premise SAP system.
+The virtual data model is the fundamental data model for applications. For both transactional and analytical applications, plus APIs.
+
+The virtual data model
+
+avoids redundant ABAP CDS views,
+provides a consistent model,
+helps to maintain an overview,
+structures the data into logical units from a business perspective, and
+provides consistent names.
+The virtual data model consists of four layers:
+
+consumption views,
+composite interface views,
+basic interface views, and
+database tables.
