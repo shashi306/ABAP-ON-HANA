@@ -1,0 +1,5 @@
+1) SQL Monitor: Analyzes the SQL profile of processes.(no information about the code execution flow(stack trace)).
+2) ABAP Test Cockpit: Detects source code with optimization potential( no information about if and how often code
+   is actually executed).
+3) For a full runtime analysis, you can use the ABAP Trace (SAT) or the ABAP Profiling perspective in the ABAP
+Development Tools for Eclipse.
